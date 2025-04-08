@@ -79,3 +79,94 @@ train_dataset, train_dl, test_dataset, test_dl = defineDataLoaders(x_train, y_tr
 #Visualize the dataset
 print(x_train.shape, y_train.shape)
 print(x_test.shape, y_test.shape)
+
+def makeU_NetModel():
+    """
+    Creates and returns the Transfer Learning model for COFAR10 using VGG16 
+    """
+    model = nn.Sequential(
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.MaxPool2d(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.MaxPool2d(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.MaxPool2d(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.MaxPool2d(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.MaxPool2d(),
+        nn.ConvTranspose2d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.ConvTranspose2d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.ConvTranspose2d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.ConvTranspose2d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.Conv3d(),
+        nn.ReLU(),
+        nn.Conv1d(),
+
+        #NOTE is 3x3 the input or 3d? is 2x2 the input or 2d?
+        #conv 3x3 + ReLu
+        #conv 3x3 + ReLu
+        #maxpool 2x2
+        #conv 3x3 + ReLu
+        #conv 3x3 + ReLu
+        #maxpool 2x2
+        #conv 3x3 + ReLu
+        #conv 3x3 + ReLu
+        #maxpool 2x2
+        #conv 3x3 + ReLu
+        #conv 3x3 + ReLu
+        #maxpool 2x2
+        #conv 3x3 + ReLu
+        #conv 3x3 + ReLu
+        #Transp. Conv 2×2 + ReLU
+        #conv 3x3 + ReLu
+        #conv 3x3 + ReLu
+        #Transp. Conv 2×2 + ReLU
+        #conv 3x3 + ReLu
+        #conv 3x3 + ReLu
+        #Transp. Conv 2×2 + ReLU
+        #conv 3x3 + ReLu
+        #conv 3x3 + ReLu
+        #Transp. Conv 2×2 + ReLU
+        #conv 3x3 + ReLu
+        #conv 3x3 + ReLu
+        #conv 1×1
+
+
+    )
+
+    model = model.to(device)
+    return model
