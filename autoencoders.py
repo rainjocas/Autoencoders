@@ -1,18 +1,6 @@
 """
-The task we’ll explore today is that of Denoising (note that we covered the UNet
-for segmentation in class, which means that things will be slightly different for
-this UNet implementation) We’ll use the MNIST dataset for this purpose. In this
-problem, you’ll artificially introduce noise to the data during training and then
-you should try to predict the clean image using the noisy data as the input. In
-PyTorch, you can introduce noise to the images by adding matrices whose values
-are normally distributed to them (you can use randn() or randn_like() Pytorch
-functions for that). As you add the noise, make sure to consider how much of that
-noise should be in the image. For example, if I is the image (whose values should
-be normalized to be in [0, 1]) and N is the noise matrix, the noisy image Y
-should be Y = (1 - mu)*I + mu*N, where mu is a value in [0, 1]. After you add the
-noise, make sure that the final image has its values in [0, 1]. Try to add this
-whole procedure in a Pytorch Dataset class.
-
+Date: 04/17/2025
+Author: Rain Jocas
 """
 import pandas as pd
 import torch
@@ -33,9 +21,7 @@ mnist_train = datasets.MNIST(data_folder, download=True, train=True)
 x_train, y_train = mnist_train.data, mnist_train.targets
 
 class MNISTDataset(Dataset):
-    """
-    Creates a dataset that processes the data and adds noise
-    """
+    """ Creates a dataset that processes the data and adds noise """
     def __init__(self, x, y, mu):
         x = x.float()/255 #rescale because its an image to make values between [0,1]
         x = x.unsqueeze(1)
@@ -54,9 +40,7 @@ class MNISTDataset(Dataset):
         return x_noisy.to(device), x_clean.to(device)
 
 def loadMNISTData():
-    """
-    Loads the MNIST training and testing data
-    """
+    """ Loads the MNIST training and testing data """
     mnist_train = datasets.MNIST('~/data/MNIST', download=True, train=True)
     mnist_test = datasets.MNIST('~/data/MNIST', download=True, train=False)
     x_train, y_train = mnist_train.data, mnist_train.targets
@@ -64,6 +48,7 @@ def loadMNISTData():
     return mnist_train, mnist_test, x_train, y_train, x_test, y_test
 
 def defineDataLoaders(x_train, y_train, x_test, y_test, mu):
+    """ Defines the Data Loaders"""
     train_dataset = MNISTDataset(x_train, y_train, mu)
     train_dl = DataLoader(train_dataset, batch_size=32, shuffle=True)
     test_dataset = MNISTDataset(x_test, y_test, mu)
@@ -71,9 +56,7 @@ def defineDataLoaders(x_train, y_train, x_test, y_test, mu):
     return train_dataset, train_dl, test_dataset, test_dl
 
 class U_NetModel(nn.Module):
-    """
-    NOTE: ADD DOCUMENTATION
-    """
+    """ Defines the U-Net denoising model """
     def __init__(self):
         super().__init__()
         self.downsample_one = nn.Sequential(
@@ -138,9 +121,7 @@ class U_NetModel(nn.Module):
         return x11
 
 class AutoencoderModel(nn.Module):
-    """
-    NOTE: ADD DOCUMENTATION
-    """
+    """ Defines the Autoencoder denoising model """
     def __init__(self):
         super().__init__()
         self.downsample_one = nn.Sequential(
@@ -206,9 +187,7 @@ class AutoencoderModel(nn.Module):
 
 @torch.no_grad()
 def accuracy(x, y, model):
-    """
-    Calculates a model's accuracy (Taken from Slides)
-    """
+    """ Calculates a model's accuracy (Taken from Slides) """
     model.eval()
     prediction = model(x)
     argmaxes = prediction.argmax(dim=1)
@@ -216,9 +195,7 @@ def accuracy(x, y, model):
     return s.cpu().numpy()
 
 def train_batch(x, y, model, opt, loss_fn):
-    """
-    Trains a batch (Taken from Slides and edited)
-    """
+    """ Trains a batch (Taken from Slides and edited) """
     model.train()
     opt.zero_grad() # Flush memory
     batch_loss = loss_fn(model(x), y) # Compute loss
@@ -227,9 +204,7 @@ def train_batch(x, y, model, opt, loss_fn):
     return batch_loss.detach().cpu().numpy() # Removes grad, sends data to mps, converts tensor to array
 
 def train_model(model, opt, loss_fn, train_dl):
-    """
-    Trains a model for 10 epochs
-    """
+    """ Trains a model for 5 epochs """
     train_losses, train_accuracies, n_epochs = [], [], 5
     for epoch in range(n_epochs):
         print(f"Running epoch {epoch + 1} of {n_epochs}")
@@ -243,9 +218,7 @@ def train_model(model, opt, loss_fn, train_dl):
     return train_losses, train_accuracies
 
 def run_U_Net(mu):
-    """
-    Preprocess data, and runs and returns metrics of the VGG16 TL model
-    """
+    """ Preprocess data, and runs and returns metrics of the U-Net model """
     #Loading and data pre-processing
     mnist_train, mnist_test, x_train, y_train, x_test, y_test = loadMNISTData()
     train_dataset, train_dl, test_dataset, test_dl = defineDataLoaders(x_train, y_train, x_test, y_test, mu)
@@ -270,9 +243,7 @@ def run_U_Net(mu):
     return runTime, np.mean(train_losses), np.mean(train_accuracies)
 
 def run_AutoEncoder(mu):
-    """
-    Preprocess data, and runs and returns metrics of the VGG16 TL model
-    """
+    """ Preprocess data, and runs and returns metrics of the AutoEncoder model """
     #Loading and data pre-processing
     mnist_train, mnist_test, x_train, y_train, x_test, y_test = loadMNISTData()
     train_dataset, train_dl, test_dataset, test_dl = defineDataLoaders(x_train, y_train, x_test, y_test, mu)
@@ -298,6 +269,7 @@ def run_AutoEncoder(mu):
 
 
 def runAll():
+    """ Runs the U-Net and Autoencoder models for values of Mu = 0.3, Mu = 0.5, and Mu = 0.7 """
     uNetRunTimes = []
     uNetLoss = []
     uNetAcc = []
@@ -319,7 +291,7 @@ def runAll():
     uNetresults = {'Mu': [0.3, 0.5, 0.7 ],
                    'Loss': uNetLoss, 'Accuracy': uNetAcc, 'Run Time': uNetRunTimes}
     uNetresults = pd.DataFrame(uNetresults)
-    print("uNetresults")
+    print("U-Net:")
     print(uNetresults)
 
     AcRunTimes = []
@@ -342,14 +314,8 @@ def runAll():
     AutoEncoderresults = {'Mu': [0.3, 0.5, 0.7 ],
                    'Loss': AcLoss, 'Accuracy': AcAcc, 'Run Time': AcRunTimes}
     AutoEncoderresults = pd.DataFrame(AutoEncoderresults)
-    print("AutoEncoderresults")
+    print("Autoencoder:")
     print(AutoEncoderresults)
-
-
-    #run_AutoEncoder()
     
 
 runAll()
-
-#NOTE: How to export images?
-#NOTE: How do I grab the denoised image?
