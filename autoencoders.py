@@ -14,30 +14,23 @@ noise, make sure that the final image has its values in [0, 1]. Try to add this
 whole procedure in a Pytorch Dataset class.
 
 """
+import pandas as pd
 import torch
 import numpy as np
 import torch.nn as nn
 from torchvision import datasets
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
+import time
 
 
 device = 'mps' if torch.backends.mps.is_available() else 'cpu'
 print(device)
 
 #import MNIST dataset
-
 data_folder = '~/data/MNIST'
 mnist_train = datasets.MNIST(data_folder, download=True, train=True)
 x_train, y_train = mnist_train.data, mnist_train.targets
-
-
-# if I is the image (whose values should be normalized to be in [0, 1]) and N is
-# the noise matrix, the noisy image Y should be Y = (1 - mu)*I + mu*N, where mu
-# is a value in [0, 1]. After you add the noise, make sure that the final image
-# has its values in [0, 1]. Try to add this whole procedure in a Pytorch Dataset
-# class.
-#NOTE: HELP HOW DO I ADD NOISE
 
 class MNISTDataset(Dataset):
     """
@@ -53,6 +46,11 @@ class MNISTDataset(Dataset):
     def __getitem__(self, ix):
         x_clean, mu, N = self.x[ix], self.mu, self.N[ix]
         x_noisy = ((1- mu) * x_clean) + (mu * N)
+        minN = torch.min(N)
+        maxN = torch.max(N)
+        spread = maxN - minN
+        x_noisy = x_noisy - minN
+        x_noisy = x_noisy/spread
         return x_noisy.to(device), x_clean.to(device)
 
 def loadMNISTData():
@@ -79,48 +77,48 @@ class U_NetModel(nn.Module):
     def __init__(self):
         super().__init__()
         self.downsample_one = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size = (3,3), padding = 1),
+            nn.Conv2d(1, 32, kernel_size = (3,3), padding = 1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, kernel_size = (3,3), padding = 1),
+            nn.ReLU(),)
+        self.downsample_two = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size = (3,3), padding = 1),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size = (3,3), padding = 1),
             nn.ReLU(),)
-        self.downsample_two = nn.Sequential(
+        self.downsample_three = nn.Sequential(
             nn.Conv2d(64, 128, kernel_size = (3,3), padding = 1),
             nn.ReLU(),
             nn.Conv2d(128, 128, kernel_size = (3,3), padding = 1),
-            nn.ReLU(),)
-        self.downsample_three = nn.Sequential(
-            nn.Conv2d(128, 256, kernel_size = (3,3), padding = 1),
-            nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size = (3,3), padding = 1),
             nn.ReLU(),)
         
         self.max_pool = nn.MaxPool2d(kernel_size = (2,2))
 
         self.middle = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size = (3,3), padding = 1),
+            nn.Conv2d(128, 128, kernel_size = (3,3), padding = 1),
             nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size = (3,3), padding = 1),
+            nn.Conv2d(128, 128, kernel_size = (3,3), padding = 1),
             nn.ReLU(),)
 
         self.upsample_one = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size = (3,3), padding = 1),
-            nn.ReLU(),
-            nn.Conv2d(256, 128, kernel_size = (3,3), padding = 1),
-            nn.ReLU(),)
-        self.upsample_two = nn.Sequential(
             nn.Conv2d(128, 128, kernel_size = (3,3), padding = 1),
             nn.ReLU(),
             nn.Conv2d(128, 64, kernel_size = (3,3), padding = 1),
             nn.ReLU(),)
+        self.upsample_two = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size = (3,3), padding = 1),
+            nn.ReLU(),
+            nn.Conv2d(64, 32, kernel_size = (3,3), padding = 1),
+            nn.ReLU(),)
         
         self.conv_Transpose_one = nn.Sequential(
-            nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2),
-            nn.ReLU(),)
-        self.conv_Transpose_two = nn.Sequential(
             nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2),
             nn.ReLU(),)
+        self.conv_Transpose_two = nn.Sequential(
+            nn.ConvTranspose2d(64, 32, kernel_size=2, stride=2),
+            nn.ReLU(),)
         
-        self.conv = nn.Conv2d(64, 1, kernel_size=1)
+        self.conv = nn.Conv2d(32, 1, kernel_size=1)
         
     def forward(self, x):
         x1 = self.downsample_one(x)
@@ -146,48 +144,48 @@ class AutoencoderModel(nn.Module):
     def __init__(self):
         super().__init__()
         self.downsample_one = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size = (3,3), padding = 1),
+            nn.Conv2d(1, 32, kernel_size = (3,3), padding = 1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, kernel_size = (3,3), padding = 1),
+            nn.ReLU(),)
+        self.downsample_two = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size = (3,3), padding = 1),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size = (3,3), padding = 1),
             nn.ReLU(),)
-        self.downsample_two = nn.Sequential(
+        self.downsample_three = nn.Sequential(
             nn.Conv2d(64, 128, kernel_size = (3,3), padding = 1),
             nn.ReLU(),
             nn.Conv2d(128, 128, kernel_size = (3,3), padding = 1),
-            nn.ReLU(),)
-        self.downsample_three = nn.Sequential(
-            nn.Conv2d(128, 256, kernel_size = (3,3), padding = 1),
-            nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size = (3,3), padding = 1),
             nn.ReLU(),)
         
         self.max_pool = nn.MaxPool2d(kernel_size = (2,2))
 
         self.middle = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size = (3,3), padding = 1),
+            nn.Conv2d(128, 128, kernel_size = (3,3), padding = 1),
             nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size = (3,3), padding = 1),
+            nn.Conv2d(128, 128, kernel_size = (3,3), padding = 1),
             nn.ReLU(),)
 
         self.upsample_one = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size = (3,3), padding = 1),
-            nn.ReLU(),
-            nn.Conv2d(256, 128, kernel_size = (3,3), padding = 1),
-            nn.ReLU(),)
-        self.upsample_two = nn.Sequential(
             nn.Conv2d(128, 128, kernel_size = (3,3), padding = 1),
             nn.ReLU(),
             nn.Conv2d(128, 64, kernel_size = (3,3), padding = 1),
             nn.ReLU(),)
+        self.upsample_two = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size = (3,3), padding = 1),
+            nn.ReLU(),
+            nn.Conv2d(64, 32, kernel_size = (3,3), padding = 1),
+            nn.ReLU(),)
         
         self.conv_Transpose_one = nn.Sequential(
-            nn.ConvTranspose2d(256, 256, kernel_size=2, stride=2),
-            nn.ReLU(),)
-        self.conv_Transpose_two = nn.Sequential(
             nn.ConvTranspose2d(128, 128, kernel_size=2, stride=2),
             nn.ReLU(),)
+        self.conv_Transpose_two = nn.Sequential(
+            nn.ConvTranspose2d(64, 64, kernel_size=2, stride=2),
+            nn.ReLU(),)
         
-        self.conv = nn.Conv2d(64, 1, kernel_size=1)
+        self.conv = nn.Conv2d(32, 1, kernel_size=1)
         
     def forward(self, x):
         x = self.downsample_one(x)
@@ -232,7 +230,7 @@ def train_model(model, opt, loss_fn, train_dl):
     """
     Trains a model for 10 epochs
     """
-    train_losses, train_accuracies, n_epochs = [], [], 1 #NOTE: change back to 10 batches
+    train_losses, train_accuracies, n_epochs = [], [], 5
     for epoch in range(n_epochs):
         print(f"Running epoch {epoch + 1} of {n_epochs}")
         train_epoch_losses, train_epoch_accuracies = [], []
@@ -248,8 +246,6 @@ def run_U_Net(mu):
     """
     Preprocess data, and runs and returns metrics of the VGG16 TL model
     """
-    print("ELEPHANT")
-
     #Loading and data pre-processing
     mnist_train, mnist_test, x_train, y_train, x_test, y_test = loadMNISTData()
     train_dataset, train_dl, test_dataset, test_dl = defineDataLoaders(x_train, y_train, x_test, y_test, mu)
@@ -257,27 +253,26 @@ def run_U_Net(mu):
     #Visualize the dataset
     print(x_train.shape, y_train.shape)
     print(x_test.shape, y_test.shape)
-    print(x_train[0])
 
     #get model
     model = U_NetModel().to(device)
-
-    #model.train(train_dataset)
 
     #loss and optimizer
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
+    #train and get time
+    startTime = time.time()
     train_losses, train_accuracies = train_model(model, optimizer, loss_fn, train_dl)
+    endTime = time.time()
+    runTime = endTime - startTime
 
-    print(train_losses, train_accuracies)
+    return runTime, np.mean(train_losses), np.mean(train_accuracies)
 
 def run_AutoEncoder(mu):
     """
     Preprocess data, and runs and returns metrics of the VGG16 TL model
     """
-    print("ELEPHANT")
-
     #Loading and data pre-processing
     mnist_train, mnist_test, x_train, y_train, x_test, y_test = loadMNISTData()
     train_dataset, train_dl, test_dataset, test_dl = defineDataLoaders(x_train, y_train, x_test, y_test, mu)
@@ -285,46 +280,76 @@ def run_AutoEncoder(mu):
     #Visualize the dataset
     print(x_train.shape, y_train.shape)
     print(x_test.shape, y_test.shape)
-    print(x_train[0])
 
     #get model
     model = AutoencoderModel().to(device)
-
-    #Plot noisy images
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(10,3))
-    for i in range(4):
-        plt.subplot(1,4,i+1)
-        plt.imshow(x_train[i])
-        plt.title(f"Noisy {y_train[i]}")
-        plt.show()
-
-    #model.train(train_dataset)
 
     #loss and optimizer
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
+    #train and get time
+    startTime = time.time()
     train_losses, train_accuracies = train_model(model, optimizer, loss_fn, train_dl)
+    endTime = time.time()
+    runTime = endTime - startTime
 
-    print(train_losses, train_accuracies)
-
-    #Plot denoised images
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(10,3))
-    for i in range(4):
-        plt.subplot(1,4,i+1)
-        plt.imshow(x_train[i])
-        plt.title(f"Label {y_train[i]}")
-        plt.show()
+    return runTime, np.mean(train_losses), np.mean(train_accuracies)
 
 
 def runAll():
-    run_U_Net(1)
-    run_AutoEncoder(1)
+    uNetRunTimes = []
+    uNetLoss = []
+    uNetAcc = []
+    #run U-Net & add metrics to list
+    runTime, loss, accuracy = run_U_Net(0.3)
+    uNetRunTimes.append(runTime)
+    uNetLoss.append(loss)
+    uNetAcc.append(accuracy)
+    runTime, loss, accuracy = run_U_Net(0.5)
+    uNetRunTimes.append(runTime)
+    uNetLoss.append(loss)
+    uNetAcc.append(accuracy)
+    runTime, loss, accuracy = run_U_Net(0.7)
+    uNetRunTimes.append(runTime)
+    uNetLoss.append(loss)
+    uNetAcc.append(accuracy)
+
+
+    uNetresults = {'Mu': [0.3, 0.5, 0.7 ],
+                   'Loss': uNetLoss, 'Accuracy': uNetAcc, 'Run Time': uNetRunTimes}
+    uNetresults = pd.DataFrame(uNetresults)
+    print("uNetresults")
+    print(uNetresults)
+
+    AcRunTimes = []
+    AcLoss = []
+    AcAcc = []
+    #run Autoencoders & add metrics to list
+    runTime, loss, accuracy = run_AutoEncoder(0.3)
+    AcRunTimes.append(runTime)
+    AcLoss.append(loss)
+    AcAcc.append(accuracy)
+    runTime, loss, accuracy = run_AutoEncoder(0.5)
+    AcRunTimes.append(runTime)
+    AcLoss.append(loss)
+    AcAcc.append(accuracy)
+    runTime, loss, accuracy = run_AutoEncoder(0.7)
+    AcRunTimes.append(runTime)
+    AcLoss.append(loss)
+    AcAcc.append(accuracy)
+
+    AutoEncoderresults = {'Mu': [0.3, 0.5, 0.7 ],
+                   'Loss': AcLoss, 'Accuracy': AcAcc, 'Run Time': AcRunTimes}
+    AutoEncoderresults = pd.DataFrame(AutoEncoderresults)
+    print("AutoEncoderresults")
+    print(AutoEncoderresults)
+
+
+    #run_AutoEncoder()
     
 
 runAll()
 
 #NOTE: How to export images?
-    
+#NOTE: How do I grab the denoised image?
